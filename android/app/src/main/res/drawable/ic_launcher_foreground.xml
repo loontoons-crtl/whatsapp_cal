@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- White calendar-with-check glyph, drawn inside the 108dp adaptive safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- calendar body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33,34 h42 a5,5 0 0 1 5,5 v36 a5,5 0 0 1 -5,5 h-42 a5,5 0 0 1 -5,-5 v-36 a5,5 0 0 1 5,-5 z" />
+    <!-- header bar -->
+    <path
+        android:fillColor="#0E9A4C"
+        android:pathData="M33,34 h42 a5,5 0 0 1 5,5 v6 h-52 v-6 a5,5 0 0 1 5,-5 z" />
+    <!-- rings -->
+    <path android:fillColor="#FFFFFF" android:pathData="M42,28 h4 v10 h-4 z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M62,28 h4 v10 h-4 z" />
+    <!-- check mark -->
+    <path
+        android:fillColor="#12B65C"
+        android:pathData="M44,60 l6,6 l14,-14 l4,4 l-18,18 l-10,-10 z" />
+</vector>
