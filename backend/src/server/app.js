@@ -235,6 +235,34 @@ export function createServer({ adapter }) {
     }
   });
 
+  // --- log out of WhatsApp (clears session) then show a fresh QR to re-link ---
+  app.post('/api/whatsapp/logout', async (req, res) => {
+    if (typeof adapter.logout !== 'function') {
+      return res.status(400).json({ error: 'Not in live WhatsApp mode.' });
+    }
+    try {
+      state.whatsappReady = false; state.qr = null; state.lastError = null;
+      await adapter.logout();
+      res.json({ ok: true, message: 'Logged out — scan the new QR to link again.' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // --- force a fresh QR (e.g. the shown one expired) ---
+  app.post('/api/whatsapp/rescan', async (req, res) => {
+    if (typeof adapter.refreshQr !== 'function') {
+      return res.status(400).json({ error: 'Not in live WhatsApp mode.' });
+    }
+    try {
+      state.whatsappReady = false; state.qr = null; state.lastError = null;
+      await adapter.refreshQr();
+      res.json({ ok: true, message: 'Generating a new QR…' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // --- list watchable chats (whatsapp-web mode only) ---
   app.get('/api/chats', async (req, res) => {
     if (typeof adapter.listChats !== 'function') return res.json([]);
@@ -264,8 +292,8 @@ export function createServer({ adapter }) {
     }
   });
 
-  // --- serve the built React frontend (production) with SPA fallback ---
-  if (fs.existsSync(FRONTEND_DIST)) {
+  // --- serve the built React frontend (production only) with SPA fallback ---
+  if (config.serveFrontend && fs.existsSync(FRONTEND_DIST)) {
     app.use(express.static(FRONTEND_DIST));
     app.get(/^(?!\/api\/|\/share-target).*/, (req, res) => {
       res.sendFile(path.join(FRONTEND_DIST, 'index.html'));

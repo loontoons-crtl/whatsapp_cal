@@ -47,11 +47,17 @@ npm run dev            # open http://localhost:5173
 
 ## Production (one server)
 
-Build the frontend; the backend then serves it at `/`:
+Build the frontend; the backend serves it at `/` **only** when `SERVE_FRONTEND=true`
+(or `NODE_ENV=production`). In dev it stays API-only, so you never see the same UI on
+two ports:
 ```bash
 cd frontend && npm run build      # outputs frontend/dist
-cd ../backend && npm start        # serves the API + the built app on :3000
+cd ../backend && npm run serve    # serves the API + the built app on :3000
 ```
+
+> Dev vs prod, at a glance:
+> - **Dev:** backend `npm start` (:3000, API only) + frontend `npm run dev` (:5173, the UI).
+> - **Prod:** `npm run build` then backend `npm run serve` (:3000 serves everything).
 
 ## Configuration
 

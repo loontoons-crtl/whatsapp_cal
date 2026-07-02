@@ -35,7 +35,7 @@ export default function Dashboard() {
         <StatusBar status={status} />
       </header>
       <main>
-        <Connections status={status} />
+        <Connections status={status} onChanged={refreshStatus} />
         <GroupFetch status={status} onAdded={refreshInvites} />
         <ManualPaste onAdded={refreshInvites} />
         <InviteList invites={invites} onChanged={refreshInvites} />

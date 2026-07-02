@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { BaseAdapter } from './adapter.js';
 import { watchListMatches, config } from '../config.js';
 
@@ -19,11 +21,42 @@ export class WhatsAppWebAdapter extends BaseAdapter {
 
   start() {
     // Async init, but return `this` immediately so the server can attach listeners.
-    this._init().catch((err) => this.emit('error', err));
+    this._init().catch((err) => {
+      if (/already running/i.test(err.message || '')) {
+        this.emit('error', new Error(
+          'WhatsApp browser is already running (orphaned Chrome from a previous run). ' +
+          'Run "npm run reset:wa" in backend/, then restart.'
+        ));
+      } else {
+        this.emit('error', err);
+      }
+    });
     return this;
   }
 
+  // Chrome writes a SingletonLock into its user-data-dir. If a previous run was
+  // hard-killed (not a clean Ctrl+C), the lock can linger and block a new launch
+  // ("browser is already running"). Remove it ONLY when the process that made it
+  // is gone — never when a live Chrome still holds the profile.
+  _cleanStaleLock() {
+    try {
+      const dataPath = config.whatsapp.sessionPath || path.join(process.cwd(), '.wwebjs_auth');
+      const sessionDir = path.join(dataPath, config.whatsapp.sessionId ? `session-${config.whatsapp.sessionId}` : 'session');
+      const lock = path.join(sessionDir, 'SingletonLock');
+      const target = fs.readlinkSync(lock); // e.g. "host-12345"
+      const pid = Number(target.split('-').pop());
+      let alive = false;
+      try { process.kill(pid, 0); alive = true; } catch { alive = false; }
+      if (!alive) {
+        for (const f of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+          fs.rmSync(path.join(sessionDir, f), { force: true });
+        }
+      }
+    } catch { /* no lock / unreadable — nothing to clean */ }
+  }
+
   async _init() {
+    this._cleanStaleLock();
     const wweb = await import('whatsapp-web.js');
     const { Client, LocalAuth } = wweb.default ?? wweb;
     const qrcode = (await import('qrcode')).default;
@@ -131,5 +164,28 @@ export class WhatsAppWebAdapter extends BaseAdapter {
     if (this.client) {
       try { await this.client.destroy(); } catch { /* ignore */ }
     }
+  }
+
+  // Tear down the current client and start fresh (re-emits a QR / reconnects).
+  async _reinit() {
+    if (this.client) {
+      try { await this.client.destroy(); } catch { /* ignore */ }
+      this.client = null;
+    }
+    this._init().catch((err) => this.emit('error', err));
+  }
+
+  // Log out the linked account (clears the saved session), then show a fresh QR
+  // so the same or a different phone can link.
+  async logout() {
+    if (this.client) {
+      try { await this.client.logout(); } catch { /* not linked yet — ignore */ }
+    }
+    await this._reinit();
+  }
+
+  // Force a new QR (e.g. the shown one expired) without logging out.
+  async refreshQr() {
+    await this._reinit();
   }
 }

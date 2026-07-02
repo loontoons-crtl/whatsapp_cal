@@ -52,6 +52,12 @@ export const config = {
   // so date-only invites still wait for you to set a time instead of guessing.
   autoCreateRequireTime: !['0', 'false', 'no', 'off'].includes((process.env.AUTO_CREATE_REQUIRE_TIME || '').trim().toLowerCase()),
 
+  // Serve the built React frontend from this server (production single-URL).
+  // In dev, leave off — use the Vite dev server (:5173) which proxies /api here.
+  serveFrontend:
+    ['1', 'true', 'yes', 'on'].includes((process.env.SERVE_FRONTEND || '').trim().toLowerCase()) ||
+    process.env.NODE_ENV === 'production',
+
   // Reminders (minutes before start). Spec: 1 day + 4 hours.
   reminders: [24 * 60, 4 * 60],
 };

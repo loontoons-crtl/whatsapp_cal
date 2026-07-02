@@ -9,8 +9,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node src/index.js",
+    "serve": "SERVE_FRONTEND=true node src/index.js",
     "setup": "bash install.sh",
     "auth": "node src/google/auth.js",
+    "reset:wa": "bash reset-whatsapp.sh",
     "test:parse": "node scripts/test-parse.js"
   },
   "dependencies": {
