@@ -1,0 +1,8 @@
+node_modules
+.wwebjs_auth
+.wwebjs_cache
+tokens
+.env
+credentials.json
+*.log
+profiles/*.env

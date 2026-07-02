@@ -3,7 +3,12 @@
 //    backend serves the built frontend.
 //  - set VITE_API_URL (e.g. https://your-backend.onrender.com) when the frontend
 //    is hosted separately (e.g. on Vercel) from the backend.
-const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+let _base = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+// If someone sets VITE_API_URL without a scheme (e.g. "foo.up.railway.app"), the
+// browser would treat it as a relative path and hit the frontend's own origin.
+// Prepend https:// so it points at the real backend.
+if (_base && !/^https?:\/\//i.test(_base)) _base = 'https://' + _base;
+const API_BASE = _base;
 
 // Thin fetch wrapper. Relative URLs work in prod (backend serves the app) and in
 // dev (Vite proxies /api and /share-target to the backend).

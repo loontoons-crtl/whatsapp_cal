@@ -71,7 +71,8 @@ export class WhatsAppWebAdapter extends BaseAdapter {
       authStrategy: new LocalAuth(localAuthOpts), // persists session so you scan only once
       puppeteer: {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        // --disable-dev-shm-usage is required in containers (small /dev/shm crashes Chrome).
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
         // Use an existing Chrome/Chromium if PUPPETEER_EXECUTABLE_PATH is set
         // (handy when the bundled Chromium download was skipped or failed).
         ...(process.env.PUPPETEER_EXECUTABLE_PATH
