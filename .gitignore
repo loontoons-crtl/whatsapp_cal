@@ -1,10 +1,20 @@
-node_modules/
-.env
-credentials.json
-profiles/*.env
-!profiles/_template.env
-.wwebjs_auth/
-.wwebjs_cache/
-tokens/
+# dependencies
+**/node_modules/
+
+# env & secrets
+**/.env
+backend/credentials.json
+backend/tokens/
+backend/profiles/*.env
+!backend/profiles/_template.env
+
+# whatsapp session
+backend/.wwebjs_auth/
+backend/.wwebjs_cache/
+
+# builds
+frontend/dist/
+
+# misc
 *.log
 .DS_Store

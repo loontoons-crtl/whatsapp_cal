@@ -1,126 +1,73 @@
-# WhatsApp → Google Calendar
+# Invite → Google Calendar
 
-Pulls event invites from WhatsApp, parses them into structured events, and — **only
-after you confirm** — creates Google Calendar events with location and reminders
-(1 day + 4 hours before).
-
-## ⚠️ Read this first: WhatsApp automation risk
-
-Live mode uses **`whatsapp-web.js`**, which drives the real WhatsApp Web client
-through a headless browser (Puppeteer). This is **unofficial and not sanctioned by
-WhatsApp**:
-
-- There is a real (usually small) risk your number gets **flagged or banned**,
-  especially with automated/bot-like behavior. The app only *reads* messages from
-  the chats you choose — it never sends anything — which keeps risk lower, but the
-  risk is not zero.
-- It can **break without warning** whenever WhatsApp changes their web client.
-
-Because of this, the WhatsApp piece is **fully isolated behind a swappable adapter**.
-You can switch to **manual paste-in mode** at any time by setting `WHATSAPP_MODE=manual`
-in `.env` — everything else (parsing, confirmation, calendar creation) is identical.
-
-**Nothing is ever added to your calendar without your explicit confirmation.**
-
-## How it works
+Turns event invites (WhatsApp, or shared text / PDF / image) into Google Calendar
+events. Split into a **backend API** and a **React frontend**.
 
 ```
-WhatsApp Web ─┐
-              ├─▶ adapter ─▶ detect invite ─▶ parse (chrono-node) ─▶ pending queue
-manual paste ─┘                                                          │
-                                                                         ▼
-                                              dashboard: review / edit / confirm
-                                                                         │
-                                                              (you click Confirm)
-                                                                         ▼
-                                                  Google Calendar event + reminders
+tanmay/
+  backend/      Express API — parsing, WhatsApp, Google Calendar, share endpoint
+    src/
+      config.js
+      index.js            entry (starts API + WhatsApp adapter)
+      server/app.js       all API routes
+      invite/             detector, parser, location
+      i18n/               numerals, keywords, temporal (Hindi/Hinglish)
+      google/             OAuth + calendar create + template link
+      whatsapp/           adapters (live web + manual) — live is optional
+      share/extract.js    text / PDF / image (Claude vision) extraction
+      store/pending.js    in-memory review queue
+    scripts/test-parse.js
+  frontend/     React + Vite dashboard (PWA + share target)
+    src/
+      main.jsx            router (/ dashboard, /share)
+      api.js              fetch helper
+      pages/              Dashboard, Share
+      components/         StatusBar, Connections, GroupFetch, ManualPaste,
+                          InviteList, InviteCard
+    public/               manifest.webmanifest, sw.js, icons
+  android/      Gradle project scaffold (for packaging the PWA)
 ```
 
-- **Detection** — keyword + date/time + location heuristics flag likely invites.
-  Low-signal messages are ignored; you can always paste anything manually.
-- **Parsing** — `chrono-node` extracts date/time; title/host/location are pulled
-  from the text. Vague locations like *"at Priya's place"* are marked **needs input**.
-- **Clarify-first** — if date, time, or location is missing/ambiguous, the card
-  shows what's needed. You can't confirm until it's resolved. No silent guessing.
-- **Confirm-to-create** — you review the full summary (including location) and edit
-  any field before the event is created.
+## Run it locally (two terminals)
 
-## Project layout
-
-```
-src/
-  config.js                 env + settings
-  index.js                  entry point (starts dashboard + adapter)
-  invite/
-    detector.js             invite-likeness scoring
-    parser.js               chrono-node parsing + field extraction
-    location.js             location classify/resolve (manual; Places swappable)
-  whatsapp/
-    adapter.js              adapter contract + factory
-    whatsappWebAdapter.js   live WhatsApp Web (isolated, unofficial)
-    manualAdapter.js        paste-in fallback (no Puppeteer needed)
-  google/
-    auth.js                 OAuth2 consent + token cache
-    calendar.js             event creation (location + reminders)
-  server/
-    app.js                  Express API
-    public/                 dashboard UI
-  store/pending.js          in-memory review queue
-scripts/test-parse.js       offline parser smoke test
-```
-
-## Multi-lingual
-
-Detection and date/time parsing work across **English, Hinglish (romanized Hindi),
-Hindi (Devanagari), and other Indian languages** (Marathi, Bengali, Gujarati, Tamil,
-Telugu, Kannada, Malayalam, Punjabi for keyword detection).
-
-- **Numerals** in regional scripts (e.g. `७ बजे`, `८`) are normalized to ASCII.
-- **Times** like `shaam 7 baje` / `शाम ७ बजे` → 7 PM, `kal raat 8 baje` → tomorrow 8 PM.
-- **Weekdays, months, "agle hafte"/"अगले हफ्ते"** are understood.
-- **Field labels** (`स्थान:`, `jagah:`, `Venue:`) are recognized for location/host.
-
-The i18n layer lives in `src/i18n/` (`numerals.js`, `keywords.js`, `temporal.js`).
-Add words there to extend coverage. Date parsing is powered by `chrono-node` fed
-through a Hindi/Hinglish → English normalizer.
-
-## Quick start
-
-The easiest path — **one command** that installs Node (if needed), deps, and `.env`:
-
+**1. Backend** (API on :3000)
 ```bash
-./install.sh           # or: npm run setup
+cd backend
+npm install            # first time (PUPPETEER_SKIP_DOWNLOAD=1 to skip Chromium)
+npm run auth           # one-time Google authorization (see backend/SETUP.md)
+npm start
 ```
 
-Then see **[SETUP.md](./SETUP.md)** for Google OAuth (one-time), and:
-
+**2. Frontend** (React dev server on :5173, proxies /api → :3000)
 ```bash
-npm run auth           # one-time Google authorization
-npm start              # open http://localhost:3000
+cd frontend
+npm install            # first time
+npm run dev            # open http://localhost:5173
 ```
 
-Manual install instead:
+## Production (one server)
 
+Build the frontend; the backend then serves it at `/`:
 ```bash
-npm install
-cp .env.example .env    # edit DEFAULT_TIMEZONE, WHATSAPP_WATCH, etc.
+cd frontend && npm run build      # outputs frontend/dist
+cd ../backend && npm start        # serves the API + the built app on :3000
 ```
 
-Try the parser with no setup at all — including Hindi/Hinglish samples:
-`npm run test:parse`.
+## Configuration
 
-> Tip: `SKIP_PUPPETEER=1 ./install.sh` skips the ~150 MB Chromium download if you
-> only plan to use manual paste mode (`WHATSAPP_MODE=manual`).
+All settings live in `backend/.env` (see `backend/.env.example`). Key flags:
 
-## Switching off WhatsApp automation
+- `WHATSAPP_MODE` — `manual` (paste/share only) or `whatsapp-web` (live monitoring)
+- `AUTO_CREATE=true` — create events automatically, no manual confirm
+- `LOCATION_MODE=auto` — auto Google Maps link; never requires a location
+- `ANTHROPIC_API_KEY` — enables reading **image** invites via Claude vision (text/PDF need no key)
 
-Set `WHATSAPP_MODE=manual` in `.env` and restart. The dashboard's paste box feeds
-the exact same pipeline. Use this if WhatsApp Web breaks or you'd rather not run
-the unofficial library.
+## Features (all preserved from the original)
 
-## Location resolution
+- Manual paste, live WhatsApp monitoring, and per-group fetch
+- Multilingual detection + date parsing (English, Hinglish, Hindi & other Indian scripts)
+- Auto Google Maps links; confirm-to-create **or** fully automatic
+- Share endpoint (`/api/share`) for text / PDF / image → the PWA share target uses it
+- Google Calendar events with 1-day + 4-hour reminders
 
-You chose **manual confirmation**: vague locations prompt you to paste a full
-address or Google Maps link before creating the event. To enable automatic
-resolution later, set `LOCATION_MODE=places` and add `GOOGLE_PLACES_API_KEY`
-in `.env` — the code path is already wired in `src/invite/location.js`.
+See **backend/SETUP.md** (Google setup), **FAMILY.md** (multi-person), **ANDROID.md** (APK).

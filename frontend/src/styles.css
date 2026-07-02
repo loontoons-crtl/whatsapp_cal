@@ -40,8 +40,10 @@ textarea, input, select {
 .btn {
   background: #2a2f3a; color: var(--text); border: none; border-radius: 8px;
   padding: 8px 14px; font-size: 13px; cursor: pointer; margin-top: 8px;
+  text-decoration: none; display: inline-block;
 }
 .btn:hover { filter: brightness(1.15); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn.primary { background: var(--accent); color: #06250f; font-weight: 600; }
 .btn.blue { background: var(--blue); color: #fff; }
 .btn.ghost { background: transparent; border: 1px solid var(--border); }
@@ -59,6 +61,8 @@ textarea, input, select {
 .actions { display: flex; gap: 8px; margin-top: 6px; }
 .created a { color: var(--accent); }
 .muted { color: var(--muted); font-size: 12px; }
+details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+details pre { white-space: pre-wrap; font-size: 12px; color: var(--muted); }
 /* group-fetch panel */
 #group-fetch .row { align-items: center; }
 #group-name { flex: 1; min-width: 180px; width: auto; }
@@ -70,5 +74,3 @@ textarea, input, select {
   border-radius: 16px; padding: 4px 12px; font-size: 12px; cursor: pointer;
 }
 .chip:hover { filter: brightness(1.25); }
-details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
-details pre { white-space: pre-wrap; font-size: 12px; color: var(--muted); }

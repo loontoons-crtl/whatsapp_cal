@@ -1,5 +1,7 @@
 import express from 'express';
+import cors from 'cors';
 import multer from 'multer';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from '../config.js';
@@ -15,10 +17,13 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Serve the built React frontend in production (frontend/dist), if present.
+const FRONTEND_DIST = path.resolve(__dirname, '../../../frontend/dist');
+
 export function createServer({ adapter }) {
   const app = express();
+  app.use(cors()); // allow the Vite dev server (and the deployed frontend) to call the API
   app.use(express.json());
-  app.use(express.static(path.join(__dirname, 'public')));
 
   // Shared runtime state surfaced to the UI.
   const state = {
@@ -258,6 +263,14 @@ export function createServer({ adapter }) {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // --- serve the built React frontend (production) with SPA fallback ---
+  if (fs.existsSync(FRONTEND_DIST)) {
+    app.use(express.static(FRONTEND_DIST));
+    app.get(/^(?!\/api\/|\/share-target).*/, (req, res) => {
+      res.sendFile(path.join(FRONTEND_DIST, 'index.html'));
+    });
+  }
 
   return app;
 }

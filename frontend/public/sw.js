@@ -1,7 +1,7 @@
 // Service worker: makes the app installable and handles the Web Share Target.
 // When the user shares an invite (text/image/PDF) into the installed app, Android
-// POSTs it to /share-target. We stash it, then redirect to /share.html which reads
-// it back and sends it to /api/share.
+// POSTs it to /share-target. We stash it, then redirect to /share (React route)
+// which reads it back and sends it to /api/share.
 
 const SHARE_CACHE = 'shared-invite';
 
@@ -26,7 +26,7 @@ self.addEventListener('fetch', (event) => {
         }
         await cache.put('text', new Response(text));
       } catch (_) { /* fall through to the page, which will show an error */ }
-      return Response.redirect('/share.html', 303);
+      return Response.redirect('/share', 303);
     })());
   }
 });
