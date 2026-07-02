@@ -9,10 +9,18 @@ const OAUTH_PORT = 5454;
 const REDIRECT_URI = `http://localhost:${OAUTH_PORT}/oauth2callback`;
 
 function loadClientCredentials() {
+  // On a host, provide the credentials JSON via env (no committed file needed).
+  const rawJson = process.env.GOOGLE_CREDENTIALS_JSON;
+  if (rawJson && rawJson.trim()) {
+    const parsed = JSON.parse(rawJson);
+    const creds = parsed.installed || parsed.web || parsed;
+    if (!creds.client_id) throw new Error('GOOGLE_CREDENTIALS_JSON missing client_id.');
+    return creds;
+  }
   if (!fs.existsSync(config.google.credentialsPath)) {
     throw new Error(
-      `Google credentials not found at ${config.google.credentialsPath}. ` +
-      `Download an OAuth "Desktop app" client JSON from Google Cloud Console (see SETUP.md).`
+      `Google credentials not found. Set GOOGLE_CREDENTIALS_JSON, or place credentials.json at ` +
+      `${config.google.credentialsPath} (see SETUP.md).`
     );
   }
   const raw = JSON.parse(fs.readFileSync(config.google.credentialsPath, 'utf8'));
@@ -21,21 +29,37 @@ function loadClientCredentials() {
   return creds;
 }
 
+// Read the cached OAuth token from env (host) or the token file (local). Env wins.
+function readToken() {
+  const envToken = process.env.GOOGLE_TOKEN_JSON;
+  if (envToken && envToken.trim()) return JSON.parse(envToken);
+  if (fs.existsSync(config.google.tokenPath)) {
+    return JSON.parse(fs.readFileSync(config.google.tokenPath, 'utf8'));
+  }
+  return null;
+}
+
 function makeOAuthClient() {
   const { client_id, client_secret } = loadClientCredentials();
   return new google.auth.OAuth2(client_id, client_secret, REDIRECT_URI);
 }
 
 function saveToken(tokens) {
-  fs.mkdirSync(path.dirname(config.google.tokenPath), { recursive: true });
-  fs.writeFileSync(config.google.tokenPath, JSON.stringify(tokens, null, 2));
+  // Best-effort: on a read-only host filesystem this is skipped. That's fine —
+  // the refresh_token (from GOOGLE_TOKEN_JSON) stays valid, so the in-memory
+  // client keeps refreshing access tokens across the process's life.
+  try {
+    fs.mkdirSync(path.dirname(config.google.tokenPath), { recursive: true });
+    fs.writeFileSync(config.google.tokenPath, JSON.stringify(tokens, null, 2));
+  } catch { /* read-only fs (e.g. serverless) — ignore */ }
 }
 
 /** Returns an authorized OAuth2 client if a cached token exists, else null. */
 export function getAuthorizedClientSync() {
-  if (!fs.existsSync(config.google.tokenPath)) return null;
+  const token = readToken();
+  if (!token) return null;
   const client = makeOAuthClient();
-  client.setCredentials(JSON.parse(fs.readFileSync(config.google.tokenPath, 'utf8')));
+  client.setCredentials(token);
   client.on('tokens', (t) => {
     const merged = { ...client.credentials, ...t };
     saveToken(merged);
@@ -44,7 +68,8 @@ export function getAuthorizedClientSync() {
 }
 
 export function isAuthorized() {
-  return fs.existsSync(config.google.tokenPath);
+  return !!(process.env.GOOGLE_TOKEN_JSON && process.env.GOOGLE_TOKEN_JSON.trim())
+    || fs.existsSync(config.google.tokenPath);
 }
 
 export function getConsentUrl() {

@@ -1,0 +1,32 @@
+# Render Blueprint — deploys the backend (which also serves the built frontend).
+# In Render: New → Blueprint → connect this repo. It reads this file.
+# You'll be prompted for the two secret values (GOOGLE_CREDENTIALS_JSON, GOOGLE_TOKEN_JSON).
+services:
+  - type: web
+    name: invite-to-calendar
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: cd frontend && npm ci && npm run build && cd ../backend && npm ci
+    startCommand: cd backend && npm run serve
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SERVE_FRONTEND
+        value: "true"
+      - key: PUPPETEER_SKIP_DOWNLOAD   # no Chromium needed in manual mode
+        value: "1"
+      - key: WHATSAPP_MODE             # live WhatsApp can't run here; use manual + share
+        value: manual
+      - key: AUTO_CREATE
+        value: "true"
+      - key: LOCATION_MODE
+        value: auto
+      - key: DEFAULT_TIMEZONE
+        value: Asia/Kolkata
+      - key: GOOGLE_CALENDAR_ID
+        value: primary
+      - key: GOOGLE_CREDENTIALS_JSON   # paste your credentials.json contents (secret)
+        sync: false
+      - key: GOOGLE_TOKEN_JSON         # paste backend/tokens/google-token.json contents (secret)
+        sync: false

@@ -1,8 +1,15 @@
+// Base URL for the backend API.
+//  - empty (default): same-origin — works in dev (Vite proxy) and when the
+//    backend serves the built frontend.
+//  - set VITE_API_URL (e.g. https://your-backend.onrender.com) when the frontend
+//    is hosted separately (e.g. on Vercel) from the backend.
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
 // Thin fetch wrapper. Relative URLs work in prod (backend serves the app) and in
 // dev (Vite proxies /api and /share-target to the backend).
 export async function api(path, opts = {}) {
   const isForm = opts.body instanceof FormData;
-  const res = await fetch(path, {
+  const res = await fetch(API_BASE + path, {
     ...opts,
     headers: {
       ...(isForm ? {} : { 'Content-Type': 'application/json' }),
